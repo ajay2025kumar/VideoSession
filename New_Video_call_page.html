@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterpVault On-Demand Video Call</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: linear-gradient(#f7f8fa,#e4e8ed); color: #333; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: white; border-bottom: 2px solid #e0e0e0; }
+    .logo-clock { display: flex; align-items: center; gap: 15px; }
+    .logo-clock img { height: 32px; }
+    .clock { font-size: 16px; font-weight: bold; color: #333; }
+    .right-section { display: flex; align-items: center; gap: 10px; }
+    .schedule-btn { background: #ffe48d; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; font-weight: bold; }
+    .profile { width: 40px; height: 40px; background: #b38dd4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+    main { padding: 20px; max-width: 800px; margin: auto; }
+    h2 { margin: 0 0 10px; } p { margin: 0 0 15px; color: #666; }
+    .search-bar { margin-bottom: 15px; } .search-bar input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    .languages { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; }
+    .language-btn { padding: 12px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; cursor: pointer; text-align: center; font-size: 14px; }
+    .language-btn.selected { background: #e53935; color: white; border-color: #e53935; }
+    .actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+    .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; margin-left: 10px; font-weight: bold; }
+    .btn-reset { background: white; border: 1px solid #ccc; } .btn-next { background: #e53935; color: white; }
+    #screen2 { display: none; }
+    .gender-selection { display: flex; gap: 10px; margin-bottom: 20px; }
+    .gender-btn { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; background: #f9f9f9; cursor: pointer; text-align: center; }
+    .gender-btn.selected { background: #e53935; color: white; border-color: #e53935; }
+    .form-row { display: flex; gap: 15px; margin-bottom: 20px; } .form-row select, .form-row input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    .actions-screen2 { display: flex; justify-content: flex-end; gap: 10px; } .btn-back { background: white; border: 1px solid #ccc; } .btn-call { background: #e53935; color: white; }
+    #spinner-container.hidden { display: none; } #spinner { display: flex; flex-direction: column; align-items: center; margin-top: 30px; text-align: center; }
+    .loader { border: 8px solid #f3f3f3; border-radius: 50%; border-top: 8px solid #e53935; width: 80px; height: 80px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);} }
+    .text-queue { margin: 20px; font-size: 1.2rem; color: #e53935; }
+    .cancel-button { background: white; border: 2px solid #e53935; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #e53935; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-clock">
+      <img id="logoImg" src="" alt="InterpVault Logo">
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+    <div class="right-section">
+      <button class="schedule-btn">Upcoming Schedule</button>
+      <div class="profile">CH</div>
+    </div>
+  </header>
+
+  <!-- Screen 1 -->
+  <main id="screen1">
+    <h2>On-Demand Video Call</h2>
+    <p>Kindly choose the language for interpretation.</p>
+    <div class="search-bar"><input type="text" id="searchInput" placeholder="Search"></div>
+    <div class="languages" id="languageList">
+      <div class="language-btn selected">English</div>
+      <div class="language-btn">Hindi</div>
+      <div class="language-btn">German</div>
+      <div class="language-btn">Spanish</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-reset" onclick="resetSelection()">Reset</button>
+      <button class="btn btn-next" onclick="nextScreen()">Next</button>
+    </div>
+  </main>
+
+  <!-- Screen 2 -->
+  <main id="screen2">
+    <h2>On-Demand Video Call</h2>
+    <p>Please select the Gender</p>
+    <div class="gender-selection">
+      <div class="gender-btn selected">No Preference</div>
+      <div class="gender-btn">Male</div>
+      <div class="gender-btn">Female</div>
+    </div>
+    <div class="form-row">
+      <select id="department">
+        <option>Pediatrics</option>
+        <option>Cardiology</option>
+        <option>Dermatology</option>
+      </select>
+      <input type="text" id="mrn" placeholder="Enter MRN">
+    </div>
+    <div class="actions-screen2">
+      <button class="btn btn-back" onclick="prevScreen()">Back</button>
+      <button class="btn btn-call" onclick="createVideochatSession()">Call</button>
+    </div>
+  </main>
+
+  <!-- Spinner -->
+  <div id="spinner-container" class="hidden">
+    <div id="spinner">
+      <div class="loader"></div>
+      <p class="text-queue">Please wait to be connected</p>
+      <button class="cancel-button" id="btn-cancel-session">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    // ==== CONFIG ====
+    const config = {
+      logoPath: "e9a34b33-0923-45d2-aa4d-929295bef4b8.png",
+      nicBusNumber: "4604930",
+      clusterNiC: "e32",
+      surflyWidgetKey: "6466785aa9754320976747b39f65dea0",
+      videoSignalerURL:
+        "https://home-e32.niceincontact.com/inContact/Manage/Scripts/Spawn.aspx?scriptName=Surfly_Signaler&bus_no=4604930&scriptId=273896001&skill_no=25161997",
+      skillNumberMap: { English: "25162081", Hindi: "25162082", German: "25162083", Spanish: "25162084" }
+    };
+
+    document.getElementById("logoImg").src = config.logoPath;
+
+    // Clock
+    function updateClock() {
+      document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // Navigation
+    function nextScreen() { screen1.style.display = "none"; screen2.style.display = "block"; }
+    function prevScreen() { screen2.style.display = "none"; screen1.style.display = "block"; }
+
+    // Language selection
+    let skillNumber = config.skillNumberMap["English"];
+    document.querySelectorAll(".language-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".language-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        skillNumber = config.skillNumberMap[btn.textContent.trim()] || skillNumber;
+      });
+    });
+
+    // Search
+    searchInput.addEventListener("input", function () {
+      const f = this.value.toLowerCase();
+      document.querySelectorAll("#languageList .language-btn").forEach(lang => {
+        lang.style.display = lang.textContent.toLowerCase().includes(f) ? "" : "none";
+      });
+    });
+
+    // Reset
+    function resetSelection() {
+      searchInput.value = "";
+      document.querySelectorAll("#languageList .language-btn").forEach(lang => {
+        lang.style.display = "";
+        lang.classList.remove("selected");
+      });
+      document.querySelector("#languageList .language-btn").classList.add("selected");
+      skillNumber = config.skillNumberMap["English"];
+    }
+
+    // Gender selection
+    document.querySelectorAll(".gender-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".gender-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+      });
+    });
+
+    // NICE CXone + Surfly
+    let randomIdNice = "";
+    function randomId() { randomIdNice = Math.random().toString(36).substring(7) + "-" + Date.now(); }
+    function signalWorkItem(followerLink) {
+      randomId();
+      let url = new URL(config.videoSignalerURL);
+      url.searchParams.set("p1", "startWorkItem");
+      url.searchParams.set("p2", followerLink);
+      url.searchParams.set("p3", randomIdNice);
+      url.searchParams.set("p5", skillNumber);
+      fetch(url, { mode: "no-cors" });
+    }
+    function endWorkItem(followerLink) {
+      let url = new URL(config.videoSignalerURL);
+      url.searchParams.set("p1", "endWorkItem");
+      url.searchParams.set("p2", followerLink);
+      url.searchParams.set("p3", randomIdNice);
+      fetch(url, { mode: "no-cors" });
+    }
+
+    function createVideochatSession() {
+      var session = Surfly.session({
+        block_until_agent_joins: true,
+        hide_until_agent_joins: true,
+        videochat_autostart: true,
+        start_with_fullscreen_videochat: true,
+        videochat_prompt: true,
+        start_muted: false
+      });
+      session.on("session_started", s => {
+        signalWorkItem(s.followerLink);
+        spinnerContainer.classList.remove("hidden");
+        btnCancelSession.onclick = () => { s.end(); };
+      }).on("session_ended", s => {
+        endWorkItem(s.leaderLink);
+        spinnerContainer.classList.add("hidden");
+      }).startLeader(null);
+    }
+
+    // Load NICE ChatClient + Surfly
+    const NicHomeURL = "https://home-" + config.clusterNiC + ".niceincontact.com";
+    const chatSrc = document.createElement("script");
+    chatSrc.src = NicHomeURL + "/inContact/ChatClient/js/embed.min.js";
+    document.head.appendChild(chatSrc);
+    chatSrc.onload = function () {
+      (function (s, u, r, f, l, y) {
+        s[f] = s[f] || { init: function () { s[f].q = arguments; } };
+        l = u.createElement(r); y = u.getElementsByTagName(r)[0]; l.async = 1;
+        l.src = "https://surfly.com/surfly.js"; y.parentNode.insertBefore(l, y);
+      })(window, document, "script", "Surfly");
+      Surfly.init({ widget_key: config.surflyWidgetKey, auto_restore: false }, res => console.log("Surfly init:", res.success));
+    };
+  </script>
+</body>
+</html>
